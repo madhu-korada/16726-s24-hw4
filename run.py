@@ -182,8 +182,6 @@ def run_optimization(cnn, content_img, style_img, input_img, use_content=True, u
 
 def main(style_img_path, content_img_path):
     print("Running Neural Style Transfer")
-    print(f"Style Image: {style_img_path}")
-    print(f"Content Image: {content_img_path}")
     # we've loaded the images for you
     style_img = load_image(style_img_path)
     content_img = load_image(content_img_path)
@@ -232,7 +230,7 @@ def main(style_img_path, content_img_path):
     # save the image
     save_path = f'output/{content_img_name}_{style_img_name}_reconstructed.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Reconstructed Image saved at {save_path}")
+    print(f"Reconstructed Image saved at {save_path}\n")
     # plt.figure()
     # imshow(output, title='Reconstructed Image')
 
@@ -246,7 +244,7 @@ def main(style_img_path, content_img_path):
     # save the image
     save_path = f'output/{content_img_name}_{style_img_name}_synthesized.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Synthesized Image saved at {save_path}")
+    print(f"Synthesized Image saved at {save_path}\n")
     # plt.figure()
     # imshow(output, title='Synthesized Texture')
 
@@ -258,12 +256,11 @@ def main(style_img_path, content_img_path):
 
     save_path = f'output/{content_img_name}_{style_img_name}_styled.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Styled Image saved at {save_path}")
+    print(f"Styled Image saved at {save_path}\n")
     # plt.figure()
     # imshow(output, title='Output Image from noise')
 
     print("Performing Style Transfer from content image initialization")
-    # content_img.clone()
     input_img = content_img.clone()
     # transfer the style from the style_img to the content image
     output = run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=True)
@@ -271,7 +268,7 @@ def main(style_img_path, content_img_path):
     # save the image
     save_path = f'output/{content_img_name}_{style_img_name}_styled_content.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Styled Image saved at {save_path}")
+    print(f"Styled Image saved at {save_path}\n")
     # plt.figure()
     # imshow(output, title='Output Image from noise')
 
@@ -280,5 +277,15 @@ def main(style_img_path, content_img_path):
 
 
 if __name__ == '__main__':
-    args = sys.argv[1:3]
-    main(*args)
+    # Example: python run.py images/style/escher_sphere.jpeg images/content/dancing.jpg
+    # args = sys.argv[1:3]
+    # main(*args)
+    
+    content_folder = 'images/content/'
+    style_folder = 'images/style/'
+    
+    for content_img in os.listdir(content_folder):
+        for style_img in os.listdir(style_folder):
+            print(f"----------------------------------\nContent Image: {content_img}\nStyle Image: {style_img}\n")
+            main(style_folder + style_img, content_folder + content_img)
+            print(f"----------------------------------\n")
