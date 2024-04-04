@@ -17,6 +17,9 @@ unloader = transforms.ToPILImage()  # reconvert into PIL image
 
 def load_image(image_name):
     image = Image.open(image_name)
+    # if image is RGBA, convert to RGB
+    if image.mode == 'RGBA':
+        image = image.convert('RGB')
     # fake batch dimension required to fit network's input dimensions
     image = loader(image).unsqueeze(0)
     return image.to(device, torch.float)

@@ -22,9 +22,14 @@ module that has content loss and style loss modules correctly inserted.
 # desired depth layers to compute style/content losses :
 content_layers_default = ['conv_4']
 style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
+# style_layers_default = ['conv_1', 'conv_2', 'conv_4', 'conv_7', 'conv_11']
+# style_layers_default = ['conv_1', 'conv_3', 'conv_5', 'conv_7', 'conv_9']
+# style_layers_default = ['conv_2', 'conv_4', 'conv_6', 'conv_8', 'conv_10']
+# style_layers_default = ['conv_4', 'conv_7', 'conv_10', 'conv_13', 'conv_16']
+# style_layers_default = ['conv_3', 'conv_6', 'conv_9', 'conv_12', 'conv_15']
 
 
-def get_model_and_losses(cnn, style_img, content_img, outuput_folder,
+def get_model_and_losses(cnn, style_img, content_img, output_folder,
                                content_layers=content_layers_default,
                                style_layers=style_layers_default):
     cnn = copy.deepcopy(cnn)
@@ -112,19 +117,13 @@ between 0 to 1 each time the network is run.
 """
 
 
-def run_optimization(cnn, content_img, style_img, input_img, outuput_folder, use_content=True, use_style=True, num_steps=300,
+def run_optimization(cnn, content_img, style_img, input_img, output_folder, use_content=True, use_style=True, num_steps=300,
                      style_weight=1000000, content_weight=1, default_layers=True):
     """Run the image reconstruction, texture synthesis, or style transfer."""
     print('Building the style transfer model..')
     # get your model, style, and content losses
-    if default_layers:
-        content_layers_default = ['conv_4']
-        style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
-    else:
-        content_layers_default = ['conv_2', 'conv_4', 'conv_7', 'conv_11', 'conv_15']
-        style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
-        
-    model, style_losses, content_losses = get_model_and_losses(cnn, style_img, content_img, outuput_folder)
+
+    model, style_losses, content_losses = get_model_and_losses(cnn, style_img, content_img, output_folder)
 
     # get the optimizer
     input_img = input_img.requires_grad_()
@@ -202,9 +201,9 @@ def main(style_img_path, content_img_path):
     style_img_name = style_img_path.split('/')[-1].split('.')[0]
     content_img_name = content_img_path.split('/')[-1].split('.')[0]
     
-    outuput_folder = 'output/' + content_img_name + '_' + style_img_name + '/'
-    if not os.path.exists(outuput_folder):
-        os.makedirs(outuput_folder)
+    output_folder = 'output/' + content_img_name + '_' + style_img_name + '/'
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     print(f'Style Image Size: {style_img.size()}')
     print(f'Content Image Size: {content_img.size()}')
@@ -224,13 +223,27 @@ def main(style_img_path, content_img_path):
         
     assert style_img.size() == content_img.size(), \
         "we need to import style and content images of the same size"
-
-    # plot the original input image:
-    # plt.figure()
-    # imshow(style_img, title='Style Image')
-
-    # plt.figure()
-    # imshow(content_img, title='Content Image')
+    
+    # style_weight = 1
+    # style_weight = 10
+    # style_weight = 1000
+    # style_weight = 1000000000
+    # style_weight = 1000000000000
+    style_weight = 1000000
+    content_weight = 1
+    
+    experiments = True
+    if experiments: 
+        # q1: content loss only 
+        # label = '_' + content_layers_default[0] #'_conv_4'
+        # q2: style loss only
+        # style_layers_labels = [l.replace('conv_', '') for l in style_layers_default]
+        # style_layers_str = '_'.join(style_layers_labels)
+        # label = '_conv_' + style_layers_str #'_conv_4'
+        # q3: hyperparameter tuning
+        label = '_sw_' + str(style_weight) + '_cw_' + str(content_weight)
+    else:
+        label = ''
 
     # we load a pretrained VGG19 model from the PyTorch models library
     # but only the feature extraction part (conv layers)
@@ -239,58 +252,63 @@ def main(style_img_path, content_img_path):
 
     # image reconstruction
     print("Performing Image Reconstruction from white noise initialization")
-    # random noise of the size of content_img on the correct device
-    input_img = torch.randn(content_img.data.size(), device=device)
-    # reconstruct the image from the noise
-    output = run_optimization(cnn, content_img, style_img, input_img, outuput_folder, use_content=True, use_style=False)
+    # # random noise of the size of content_img on the correct device
+    # input_img = torch.randn(content_img.data.size(), device=device)
+    # # input_noise = input_img.clone()
+    # # # normalize into 0 to 1 range
+    # # input_noise = (input_noise - input_noise.min()) / (input_noise.max() - input_noise.min()) 
+    # # # reconstruct the image from the noise
+    # # save_path = f'{output_folder}{content_img_name}_{style_img_name}_reconstructed{label}.jpg'
+    # # plt.imsave(save_path.replace("reconstructed", "noise"), input_noise.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
+    # # print(f"Noise Image saved at {save_path.replace('reconstructed', 'noise')}\n")
+    
+    # output = run_optimization(cnn, content_img, style_img, input_img, output_folder, use_content=True, use_style=False)
 
-    # save the image
-    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_reconstructed.jpg'
-    plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Reconstructed Image saved at {save_path}\n")
-    # plt.figure()
-    # imshow(output, title='Reconstructed Image')
-
+    # # save the image
+    # # save_path = f'{output_folder}{content_img_name}_{style_img_name}_reconstructed{label}.jpg'
+    # plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
+    # print(f"Reconstructed Image saved at {save_path}\n")
+    
+    
     # texture synthesis
     print("Performing Texture Synthesis from white noise initialization")
     # random noise of the size of content_img on the correct device
     input_img = torch.randn(content_img.data.size(), device=device)
-    # synthesize a texture like style_image
-    output = run_optimization(cnn, content_img, style_img, input_img, use_content=False, use_style=True)
+    # input_noise = input_img.clone()
+    # # normalize into 0 to 1 range
+    # input_noise = (input_noise - input_noise.min()) / (input_noise.max() - input_noise.min()) 
+    # # reconstruct the image from the noise
+    # save_path = f'{output_folder}{content_img_name}_{style_img_name}_noise{label}.jpg'
+    # plt.imsave(save_path, input_noise.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
+    # print(f"Noise Image saved at {save_path.replace('reconstructed', 'noise')}\n")
+    
+    # # synthesize a texture like style_image
+    # output = run_optimization(cnn, content_img, style_img, input_img, output_folder, use_content=False, use_style=True)
 
-    # save the image
-    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_synthesized.jpg'
-    plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Synthesized Image saved at {save_path}\n")
-    # plt.figure()
-    # imshow(output, title='Synthesized Texture')
+    # # save the image
+    # save_path = f'{output_folder}{content_img_name}_{style_img_name}_synthesized{label}.jpg'
+    # plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
+    # print(f"Synthesized Image saved at {save_path}\n")
 
-    # style transfer
-    # random noise of the size of content_img on the correct device
-    input_img = torch.randn(content_img.data.size(), device=device)
-    # transfer the style from the style_img to the content image
-    output = run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=True)
+    # # style transfer
+    # # random noise of the size of content_img on the correct device
+    # input_img = torch.randn(content_img.data.size(), device=device)
+    # # transfer the style from the style_img to the content image
+    # output = run_optimization(cnn, content_img, style_img, input_img, output_folder, use_content=True, use_style=True, style_weight=style_weight, content_weight=content_weight)
 
-    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_styled.jpg'
-    plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
-    print(f"Styled Image saved at {save_path}\n")
-    # plt.figure()
-    # imshow(output, title='Output Image from noise')
+    # save_path = f'{output_folder}{content_img_name}_{style_img_name}_styled{label}.jpg'
+    # plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
+    # print(f"Styled Image saved at {save_path}\n")
 
     print("Performing Style Transfer from content image initialization")
     input_img = content_img.clone()
     # transfer the style from the style_img to the content image
-    output = run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=True)
+    output = run_optimization(cnn, content_img, style_img, input_img, output_folder, use_content=True, use_style=True, style_weight=style_weight, content_weight=content_weight)
 
     # save the image
-    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_styled_content.jpg'
+    save_path = f'{output_folder}{content_img_name}_{style_img_name}_styled_content{label}.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
     print(f"Styled Image saved at {save_path}\n")
-    # plt.figure()
-    # imshow(output, title='Output Image from noise')
-
-    plt.ioff()
-    plt.show()
 
 
 if __name__ == '__main__':
@@ -309,6 +327,8 @@ if __name__ == '__main__':
                 main(style_folder + style_img, content_folder + content_img)
                 print(f"----------------------------------\n")
     else:
-        content_img = 'images/content/dancing.jpg'
-        style_img = 'images/style/escher_sphere.jpeg'
+        content_img = 'images/content/wally.jpg'
+        style_img = 'images/style/frida_kahlo.jpeg'
+        content_img = 'images/content/pixels.jpg'
+        style_img = 'images/style/starry_night.jpeg'
         main(style_img, content_img)
