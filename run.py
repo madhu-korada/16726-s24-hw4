@@ -8,6 +8,8 @@ import os
 from utils import load_image, Normalization, device, imshow, get_image_optimizer
 from style_and_content import ContentLoss, StyleLoss
 
+import warnings
+warnings.filterwarnings("ignore")
 
 """A ``Sequential`` module contains an ordered list of child modules. For
 instance, ``vgg19.features`` contains a sequence (Conv2d, ReLU, MaxPool2d,
@@ -22,7 +24,7 @@ content_layers_default = ['conv_4']
 style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
 
 
-def get_model_and_losses(cnn, style_img, content_img,
+def get_model_and_losses(cnn, style_img, content_img, outuput_folder,
                                content_layers=content_layers_default,
                                style_layers=style_layers_default):
     cnn = copy.deepcopy(cnn)
@@ -46,7 +48,7 @@ def get_model_and_losses(cnn, style_img, content_img,
     normalization = Normalization().to(device)
     model = nn.Sequential(normalization)
 
-    
+    print(f'------------------- Model Layers -------------------')
     i = 0  # increment every time we see a conv
     for layer in cnn.children():
         if isinstance(layer, nn.Conv2d):
@@ -66,6 +68,7 @@ def get_model_and_losses(cnn, style_img, content_img,
             raise RuntimeError('Unrecognized layer: {}'.format(layer.__class__.__name__))
 
         model.add_module(name, layer)
+        print(f'Name: {name}, Layer: {layer}')
 
         if name in content_layers:
             # add content loss:
@@ -80,7 +83,9 @@ def get_model_and_losses(cnn, style_img, content_img,
             style_loss = StyleLoss(target_feature)
             model.add_module("style_loss_{}".format(i), style_loss)
             style_losses.append(style_loss)
-
+            
+    print(f'------------------------------------------------------')
+    
     # now we trim off the layers after the last content and style losses
     for i in range(len(model) - 1, -1, -1):
         if isinstance(model[i], ContentLoss) or isinstance(model[i], StyleLoss):
@@ -107,12 +112,19 @@ between 0 to 1 each time the network is run.
 """
 
 
-def run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=True, num_steps=300,
-                     style_weight=1000000, content_weight=1):
+def run_optimization(cnn, content_img, style_img, input_img, outuput_folder, use_content=True, use_style=True, num_steps=300,
+                     style_weight=1000000, content_weight=1, default_layers=True):
     """Run the image reconstruction, texture synthesis, or style transfer."""
     print('Building the style transfer model..')
     # get your model, style, and content losses
-    model, style_losses, content_losses = get_model_and_losses(cnn, style_img, content_img)
+    if default_layers:
+        content_layers_default = ['conv_4']
+        style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
+    else:
+        content_layers_default = ['conv_2', 'conv_4', 'conv_7', 'conv_11', 'conv_15']
+        style_layers_default = ['conv_1', 'conv_2', 'conv_3', 'conv_4', 'conv_5']
+        
+    model, style_losses, content_losses = get_model_and_losses(cnn, style_img, content_img, outuput_folder)
 
     # get the optimizer
     input_img = input_img.requires_grad_()
@@ -189,6 +201,10 @@ def main(style_img_path, content_img_path):
     
     style_img_name = style_img_path.split('/')[-1].split('.')[0]
     content_img_name = content_img_path.split('/')[-1].split('.')[0]
+    
+    outuput_folder = 'output/' + content_img_name + '_' + style_img_name + '/'
+    if not os.path.exists(outuput_folder):
+        os.makedirs(outuput_folder)
 
     print(f'Style Image Size: {style_img.size()}')
     print(f'Content Image Size: {content_img.size()}')
@@ -226,10 +242,10 @@ def main(style_img_path, content_img_path):
     # random noise of the size of content_img on the correct device
     input_img = torch.randn(content_img.data.size(), device=device)
     # reconstruct the image from the noise
-    output = run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=False)
+    output = run_optimization(cnn, content_img, style_img, input_img, outuput_folder, use_content=True, use_style=False)
 
     # save the image
-    save_path = f'output/{content_img_name}_{style_img_name}_reconstructed.jpg'
+    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_reconstructed.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
     print(f"Reconstructed Image saved at {save_path}\n")
     # plt.figure()
@@ -243,7 +259,7 @@ def main(style_img_path, content_img_path):
     output = run_optimization(cnn, content_img, style_img, input_img, use_content=False, use_style=True)
 
     # save the image
-    save_path = f'output/{content_img_name}_{style_img_name}_synthesized.jpg'
+    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_synthesized.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
     print(f"Synthesized Image saved at {save_path}\n")
     # plt.figure()
@@ -255,7 +271,7 @@ def main(style_img_path, content_img_path):
     # transfer the style from the style_img to the content image
     output = run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=True)
 
-    save_path = f'output/{content_img_name}_{style_img_name}_styled.jpg'
+    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_styled.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
     print(f"Styled Image saved at {save_path}\n")
     # plt.figure()
@@ -267,7 +283,7 @@ def main(style_img_path, content_img_path):
     output = run_optimization(cnn, content_img, style_img, input_img, use_content=True, use_style=True)
 
     # save the image
-    save_path = f'output/{content_img_name}_{style_img_name}_styled_content.jpg'
+    save_path = f'{outuput_folder}{content_img_name}_{style_img_name}_styled_content.jpg'
     plt.imsave(save_path, output.squeeze(0).cpu().detach().numpy().transpose(1, 2, 0))
     print(f"Styled Image saved at {save_path}\n")
     # plt.figure()
@@ -284,9 +300,15 @@ if __name__ == '__main__':
     
     content_folder = 'images/content/'
     style_folder = 'images/style/'
+    run_all = False
     
-    for content_img in os.listdir(content_folder):
-        for style_img in os.listdir(style_folder):
-            print(f"----------------------------------\nContent Image: {content_img}\nStyle Image: {style_img}\n")
-            main(style_folder + style_img, content_folder + content_img)
-            print(f"----------------------------------\n")
+    if run_all:
+        for content_img in os.listdir(content_folder):
+            for style_img in os.listdir(style_folder):
+                print(f"----------------------------------\nContent Image: {content_img}\nStyle Image: {style_img}\n")
+                main(style_folder + style_img, content_folder + content_img)
+                print(f"----------------------------------\n")
+    else:
+        content_img = 'images/content/dancing.jpg'
+        style_img = 'images/style/escher_sphere.jpeg'
+        main(style_img, content_img)
